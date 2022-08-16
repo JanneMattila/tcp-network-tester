@@ -1,5 +1,19 @@
-﻿using Server;
+﻿using Microsoft.Extensions.Configuration;
+using Server;
 using System.Net.Sockets;
+
+var builder = new ConfigurationBuilder()
+    .SetBasePath(AppContext.BaseDirectory)
+#if DEBUG
+    .AddUserSecrets<Program>()
+#endif
+    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables();
+
+var configuration = builder.Build();
+
+var port = configuration.GetValue<int>("port");
+var interval = configuration.GetValue<int>("interval");
 
 var cancellationToken = new CancellationTokenSource();
 var delay = 0;
@@ -12,7 +26,7 @@ Console.CancelKeyPress += (sender, e) =>
 };
 
 Console.WriteLine("Starting server");
-var tcpListener = TcpListener.Create(10_000);
+var tcpListener = TcpListener.Create(port);
 tcpListener.Start();
 
 var connections = new List<ServerConnection>();
@@ -25,12 +39,7 @@ while (!cancellationToken.IsCancellationRequested)
         if (client != null)
         {
             client.NoDelay = true;
-            connections.Add(new ServerConnection()
-            {
-                Client = client,
-                Stream = client.GetStream(),
-                LastUpdated = DateTime.Now
-            });
+            connections.Add(new ServerConnection(client, client.GetStream()));
             delay = 0;
         }
     }
@@ -47,7 +56,7 @@ while (!cancellationToken.IsCancellationRequested)
         }
         else
         {
-            var lastUpdated = DateTime.Now.Add(TimeSpan.FromSeconds(-30));
+            var lastUpdated = DateTime.Now.Add(TimeSpan.FromSeconds(-interval));
             var disconnectedClients = new List<ServerConnection>();
             foreach (var connection in connections)
             {
