@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+﻿using Server;
+using System.Net.Sockets;
 
 var cancellationToken = new CancellationTokenSource();
 var delay = 0;
@@ -13,16 +14,20 @@ Console.WriteLine("Starting server");
 var tcpListener = TcpListener.Create(10_000);
 tcpListener.Start();
 
-var clients = new List<TcpClient>();
+var clients = new List<ClientData>();
 
 while (!cancellationToken.IsCancellationRequested)
 {
     if (tcpListener.Pending())
     {
-        var client = await tcpListener.AcceptTcpClientAsync(cancellationToken.Token);
-        if (client != null)
+        var tcpClient = await tcpListener.AcceptTcpClientAsync(cancellationToken.Token);
+        if (tcpClient != null)
         {
-            clients.Add(client);
+            clients.Add(new ClientData()
+            {
+                TcpClient = tcpClient,
+                LastUpdated = DateTime.Now
+            });
             delay = 0;
         }
     }
@@ -39,12 +44,24 @@ while (!cancellationToken.IsCancellationRequested)
         }
         else
         {
-            var disconnectedClients = new List<TcpClient>();
+            var lastUpdated = DateTime.Now.Add(TimeSpan.FromSeconds(-30));
+            var disconnectedClients = new List<ClientData>();
             foreach (var client in clients)
             {
-                if (!client.Connected)
+                if (client.TcpClient.Available == 0 && client.LastUpdated < lastUpdated)
                 {
                     disconnectedClients.Add(client);
+                }
+                else if (!client.TcpClient.Connected)
+                {
+                    disconnectedClients.Add(client);
+                }
+                else if (client.TcpClient.Available > 0)
+                {
+                    using var stream = client.TcpClient.GetStream();
+                    var buffer = new byte[1024];
+                    await stream.ReadAsync(buffer, 0, buffer.Length);
+                    client.LastUpdated = DateTime.Now;
                 }
             }
 

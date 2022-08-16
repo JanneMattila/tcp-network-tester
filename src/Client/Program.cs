@@ -9,11 +9,13 @@ Console.CancelKeyPress += (sender, e) =>
 
 try
 {
-    var client = new TcpClient("localhost", 10_000);
+    using var client = new TcpClient("localhost", 10_000);
+    using var stream = client.GetStream();
     while (client.Connected && !cancellationToken.IsCancellationRequested)
     {
         Console.Write(".");
-        await Task.Delay(1_000);
+        await stream.WriteAsync(new byte[1], 0, 0, cancellationToken.Token);
+        await Task.Delay(15_000, cancellationToken.Token);
     }
 
     client.Close();
