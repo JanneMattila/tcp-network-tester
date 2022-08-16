@@ -1,6 +1,10 @@
-﻿using System.Net.Sockets;
+﻿using Client;
+using System.Net.Sockets;
 
 var cancellationToken = new CancellationTokenSource();
+var connections = new List<ClientConnection>();
+var clientCount = 10_000;
+var buffer = new byte[1];
 
 Console.CancelKeyPress += (sender, e) =>
 {
@@ -9,16 +13,35 @@ Console.CancelKeyPress += (sender, e) =>
 
 try
 {
-    using var client = new TcpClient("localhost", 10_000);
-    using var stream = client.GetStream();
-    while (client.Connected && !cancellationToken.IsCancellationRequested)
+    for (int i = 0; i < clientCount; i++)
     {
-        Console.Write(".");
-        await stream.WriteAsync(new byte[1], 0, 0, cancellationToken.Token);
+        var client = new TcpClient("localhost", 10_000)
+        {
+            NoDelay = true
+        };
+
+        connections.Add(new ClientConnection()
+        {
+            Client = client,
+            Stream = client.GetStream()
+        });
+    }
+
+    while (!cancellationToken.IsCancellationRequested)
+    {
+        foreach (var connection in connections)
+        {
+            await connection.Stream.WriteAsync(buffer, 0, buffer.Length, cancellationToken.Token);
+        }
         await Task.Delay(15_000, cancellationToken.Token);
     }
 
-    client.Close();
+    foreach (var connection in connections)
+    {
+        connection.Stream.Close();
+        connection.Client.Close();
+        connection.Client.Dispose();
+    }
 }
 catch (ArgumentNullException e)
 {
