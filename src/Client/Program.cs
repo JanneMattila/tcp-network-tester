@@ -1,5 +1,6 @@
 ﻿using Client;
 using Microsoft.Extensions.Configuration;
+using System.Diagnostics;
 using System.Net.Sockets;
 
 var builder = new ConfigurationBuilder()
@@ -23,6 +24,8 @@ var buffer = new byte[1];
 
 Console.CancelKeyPress += (sender, e) =>
 {
+    Console.WriteLine($"{DateTime.Now} Closing application");
+
     cancellationToken.Cancel();
 };
 
@@ -30,33 +33,42 @@ try
 {
     Console.WriteLine($"{DateTime.Now} Creating {clientCount} client connections");
 
+    var timer = Stopwatch.StartNew();
+    var previous = 0;
     for (int i = 0; i < clientCount; i++)
     {
-        var client = new TcpClient(server, port)
+        try
         {
-            NoDelay = true
-        };
+            var client = new TcpClient(server, port)
+            {
+                NoDelay = true
+            };
 
-        connections.Add(new ClientConnection(client, client.GetStream()));
+            connections.Add(new ClientConnection(client, client.GetStream()));
+            if (timer.ElapsedMilliseconds > 1_000)
+            {
+                Console.WriteLine($"{DateTime.Now} Creating client connections: {i + 1} of {clientCount} ({i - previous + 1} created in last second)");
+                timer.Restart();
+                previous = i;
+            }
+        }
+        catch (SocketException socketEx)
+        {
+            Console.WriteLine($"{DateTime.Now} Exception while creating TcpClients: {socketEx}");
+            break;
+        }
     }
 
     Console.WriteLine($"{DateTime.Now} Created {clientCount} client connections");
     while (!cancellationToken.IsCancellationRequested)
     {
-        var start = DateTime.Now;
         foreach (var connection in connections)
         {
             await connection.Stream.WriteAsync(buffer, 0, buffer.Length, cancellationToken.Token);
         }
 
-        var end = DateTime.Now;
-        var update = (int)(end - start).TotalSeconds;
-        Console.WriteLine($"{DateTime.Now} Updated {connections.Count} connections to server. It took {update} seconds. Continue after {interval} seconds.");
-
-        if (update < interval)
-        {
-            await Task.Delay(TimeSpan.FromSeconds(interval - update), cancellationToken.Token);
-        }
+        Console.WriteLine($"{DateTime.Now} Updated {connections.Count} connections to server. Continue after {interval} seconds.");
+        await Task.Delay(TimeSpan.FromSeconds(interval), cancellationToken.Token);
     }
 
     foreach (var connection in connections)
