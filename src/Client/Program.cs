@@ -15,7 +15,7 @@ var configuration = builder.Build();
 var server = configuration.GetValue<string>("server");
 var port = configuration.GetValue<int>("port");
 var clientCount = configuration.GetValue<int>("clientCount");
-var interval = configuration.GetValue<int>("internal");
+var interval = configuration.GetValue<int>("interval");
 
 var cancellationToken = new CancellationTokenSource();
 var connections = new List<ClientConnection>();

@@ -55,19 +55,6 @@ subnet_aks_id=$(az network vnet subnet create -g $resource_group_name --vnet-nam
   --query id -o tsv)
 echo $subnet_aks_id
 
-subnet_storage_id=$(az network vnet subnet create -g $resource_group_name --vnet-name $vnet_name \
-  --name $subnet_storage_name --address-prefixes 10.3.0.0/24 \
-  --query id -o tsv)
-echo $subnet_storage_id
-
-# Delegate a subnet to Azure NetApp Files
-# https://docs.microsoft.com/en-us/azure/azure-netapp-files/azure-netapp-files-delegate-subnet
-subnet_netapp_id=$(az network vnet subnet create -g $resource_group_name --vnet-name $vnet_name \
-  --name $subnet_netapp_name --address-prefixes 10.4.0.0/28 \
-  --delegations "Microsoft.NetApp/volumes" \
-  --query id -o tsv)
-echo $subnet_netapp_id
-
 cluster_identity_json=$(az identity create --name $cluster_identity_name --resource-group $resource_group_name -o json)
 kubelet_identity_json=$(az identity create --name $kubelet_identity_name --resource-group $resource_group_name -o json)
 cluster_identity_id=$(echo $cluster_identity_json | jq -r .id)
@@ -82,9 +69,6 @@ az aks get-versions -l $location -o table
 # Note: for public cluster you need to authorize your ip to use api
 my_ip=$(curl --no-progress-meter https://api.ipify.org)
 echo $my_ip
-
-# Enable Ultra Disk:
-# --enable-ultra-ssd
 
 aks_json=$(az aks create -g $resource_group_name -n $aks_name \
  --max-pods 50 --network-plugin azure \
@@ -106,10 +90,6 @@ aks_json=$(az aks create -g $resource_group_name -n $aks_name \
  --api-server-authorized-ip-ranges $my_ip \
  -o json)
 
-aks_node_resource_group_name=$(echo $aks_json | jq -r .nodeResourceGroup)
-aks_node_resource_group_id=$(az group show --name $aks_node_resource_group_name --query id -o tsv)
-echo $aks_node_resource_group_id
-
 ###################################################################
 # Enable current ip
 az aks update -g $resource_group_name -n $aks_name --api-server-authorized-ip-ranges $my_ip
@@ -124,40 +104,62 @@ kubelogin convert-kubeconfig -l azurecli
 
 kubectl get nodes
 
-kubectl apply -f deploy/00_namespace.yaml
-kubectl apply -f deploy/01_service.yaml
+kubectl apply -f deploy/namespace.yaml
+kubectl apply -f deploy/services.yaml
 
 # Build images to ACR
+az acr login -n $acr_name
+# - Server
+docker build -t tcp-network-tester-server:latest -f ./src/Server/Dockerfile .
 docker tag tcp-network-tester-server:latest "$acr_loginServer/tcp-network-tester-server:latest"
 docker push "$acr_loginServer/tcp-network-tester-server:latest"
+# - Server stats
+docker build -t tcp-network-tester-server-stats:latest -f ./src/ServerStatistics/Dockerfile .
+docker tag tcp-network-tester-server-stats:latest "$acr_loginServer/tcp-network-tester-server-stats:latest"
+docker push "$acr_loginServer/tcp-network-tester-server-stats:latest"
+# - Client
+docker build -t tcp-network-tester-client:latest -f ./src/Client/Dockerfile .
+docker tag tcp-network-tester-client:latest "$acr_loginServer/tcp-network-tester-client:latest"
+docker push "$acr_loginServer/tcp-network-tester-client:latest"
 
 # Set deployment variables
 registry_name=$acr_loginServer
-image_name=tcp-network-tester-server
 image_tag=latest
 
-kubectl apply -f deploy/02_deployment.yaml
-cat deploy/deployment.yaml | envsubst | kubectl apply -f -
+cat deploy/deployment-server-stats.yaml | envsubst | kubectl apply -f -
+
+kubectl get service -n demos
+kubectl describe service -n demos
 
 kubectl get deployment -n demos
 kubectl describe deployment -n demos
 
 kubectl get pod -n demos -o wide
+kubectl get pod -n demos --show-labels=true
+
 kubectl describe pod -n demos
+
+stats_server_address=$(kubectl get service tcp-server-stats-svc -n demos -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+echo $stats_server_address
+
+curl $stats_server_address
+# -> OK!
+
+cat deploy/deployment-server.yaml | envsubst | kubectl apply -f -
+server_address=$(kubectl get service tcp-server-svc -n demos -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+echo $server_address
 
 kubectl get pod -n demos
 pod1=$(kubectl get pod -n demos -o name | head -n 1)
 echo $pod1
+kubectl exec --stdin --tty $pod1 -n demos -- /bin/sh
 
 kubectl describe $pod1 -n demos
 
 kubectl get service -n demos
 
-ingress_ip=$(kubectl get service -n demos -o jsonpath="{.items[0].status.loadBalancer.ingress[0].ip}")
-echo $ingress_ip
-
-curl $ingress_ip
-# -> OK!
+cat deploy/deployment-client.yaml | envsubst | kubectl apply -f -
+kubectl get deployment -n demos
 
 # Wipe out the resources
 az group delete --name $resource_group_name -y

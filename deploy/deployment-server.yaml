@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tcp-server
+  namespace: demos
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: tcp-server
+  template:
+    metadata:
+      labels:
+        app: tcp-server
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+        - image: $registry_name/tcp-network-tester-server:$image_tag
+          imagePullPolicy: Always
+          name: tcp-server
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 150m
+              memory: 150Mi
+          ports:
+            - containerPort: 10000
+              name: tcp
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "10000"
+            - name: INTERVAL
+              value: "45"
+            - name: REPORTURI
+              value: "http://$stats_server_address/api/ServerStatistics"
+            - name: REPORTINTERVAL
+              value: "10"

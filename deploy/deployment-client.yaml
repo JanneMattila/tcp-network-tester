@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tcp-client
+  namespace: demos
+spec:
+  replicas: 5
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: tcp-client
+  template:
+    metadata:
+      labels:
+        app: tcp-client
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+        - image: $registry_name/tcp-network-tester-client:$image_tag
+          imagePullPolicy: Always
+          name: tcp-client
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 150m
+              memory: 150Mi
+          env:
+            - name: SERVER
+              value: "$server_address"
+            - name: PORT
+              value: "10000"
+            - name: INTERVAL
+              value: "15"
+            - name: INTERNAL
+              value: "15"
+            - name: CLIENTCOUNT
+              value: "10000"
