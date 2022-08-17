@@ -1,22 +1,25 @@
-#See https://aka.ms/containerfastmode to understand how Visual Studio uses this Dockerfile to build your images for faster debugging.
+# This Dockerfile contains Build and Release steps:
+# 1. Build image(https://hub.docker.com/_/microsoft-dotnet-core-sdk/)
+FROM mcr.microsoft.com/dotnet/sdk:6.0.400-1-alpine3.16-amd64 AS build
+WORKDIR /source
 
-FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS base
-WORKDIR /app
 EXPOSE 80
 EXPOSE 443
 
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
-WORKDIR /src
-COPY ["src/ServerStatistics/ServerStatistics.csproj", "src/ServerStatistics/"]
-RUN dotnet restore "src/ServerStatistics/ServerStatistics.csproj"
-COPY . .
-WORKDIR "/src/src/ServerStatistics"
-RUN dotnet build "ServerStatistics.csproj" -c Release -o /app/build
+# Cache nuget restore
+COPY "src/ServerStatistics/ServerStatistics.csproj" .
+RUN dotnet restore "ServerStatistics.csproj"
 
-FROM build AS publish
-RUN dotnet publish "ServerStatistics.csproj" -c Release -o /app/publish /p:UseAppHost=false
+# Copy sources and compile
+COPY "src/ServerStatistics" .
+RUN dotnet publish "ServerStatistics.csproj" --output /app/ --configuration Release
 
-FROM base AS final
+# 2. Release image
+FROM mcr.microsoft.com/dotnet/aspnet:6.0.8-alpine3.16-amd64
 WORKDIR /app
-COPY --from=publish /app/publish .
+EXPOSE 80
+
+# Copy content from Build image
+COPY --from=build /app .
+
 ENTRYPOINT ["dotnet", "ServerStatistics.dll"]

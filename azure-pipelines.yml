@@ -1,4 +1,5 @@
 variables:
+  repositoryServerStats: 'jannemattila/tcp-network-tester-server-stats'
   repositoryServer: 'jannemattila/tcp-network-tester-server'
   repositoryClient: 'jannemattila/tcp-network-tester-client'
 
