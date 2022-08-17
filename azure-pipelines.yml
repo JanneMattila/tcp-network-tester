@@ -1,5 +1,6 @@
 variables:
-  repository: 'jannemattila/tcp-network-tester-server'
+  repositoryServer: 'jannemattila/tcp-network-tester-server'
+  repositoryClient: 'jannemattila/tcp-network-tester-client'
 
 trigger:
 - main
@@ -16,9 +17,19 @@ stages:
     - task: Docker@2
       inputs:
         containerRegistry: 'DockerHub'
-        repository: $(repository)
+        repository: $(repositoryServer)
         command: 'buildAndPush'
-        Dockerfile: '**/Dockerfile'
+        Dockerfile: 'src/Server/Dockerfile'
+        buildContext:
+        tags: |
+          $(Build.BuildNumber)
+          latest
+    - task: Docker@2
+      inputs:
+        containerRegistry: 'DockerHub'
+        repository: $(repositoryClient)
+        command: 'buildAndPush'
+        Dockerfile: 'src/Client/Dockerfile'
         buildContext:
         tags: |
           $(Build.BuildNumber)

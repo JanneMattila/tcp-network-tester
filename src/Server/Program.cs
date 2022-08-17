@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Server;
+using System.Net.Http.Json;
 using System.Net.Sockets;
 
 var builder = new ConfigurationBuilder()
@@ -15,10 +16,16 @@ var configuration = builder.Build();
 var port = configuration.GetValue<int>("port");
 var interval = configuration.GetValue<int>("interval");
 
+var reportUri = configuration.GetValue<string>("reportUri");
+var reportInterval = configuration.GetValue<int>("reportInterval");
+
 var cancellationToken = new CancellationTokenSource();
 var delay = 0;
 var lastReportedCount = -1;
 var buffer = new byte[1024];
+var connections = new List<ServerConnection>();
+var httpClient = new HttpClient();
+var lastReported = DateTime.Now;
 
 Console.CancelKeyPress += (sender, e) =>
 {
@@ -29,10 +36,19 @@ Console.WriteLine("Starting server");
 var tcpListener = TcpListener.Create(port);
 tcpListener.Start();
 
-var connections = new List<ServerConnection>();
-
 while (!cancellationToken.IsCancellationRequested)
 {
+    if (!string.IsNullOrEmpty(reportUri) &&
+        lastReported < DateTime.Now.AddSeconds(-reportInterval))
+    {
+        await httpClient.PostAsJsonAsync(reportUri, new ServerStatistics()
+        {
+            MachineName = Environment.MachineName,
+            Clients = connections.Count
+        });
+        lastReported = DateTime.Now;
+    }
+
     if (tcpListener.Pending())
     {
         var client = await tcpListener.AcceptTcpClientAsync(cancellationToken.Token);
