@@ -99,6 +99,7 @@ az aks update -g $resource_group_name -n $aks_name --api-server-authorized-ip-ra
 ###################################################################
 
 sudo az aks install-cli
+
 az aks get-credentials -n $aks_name -g $resource_group_name --overwrite-existing
 kubelogin convert-kubeconfig -l azurecli
 
@@ -151,6 +152,9 @@ cat deploy/deployment-server.yaml | envsubst | kubectl apply -f -
 server_address=$(kubectl get service tcp-server-svc -n demos -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
 echo $server_address
 
+server_address_internal=$(kubectl get service tcp-server-internal-svc -n demos -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+echo $server_address_internal
+
 kubectl get pod -n demos
 pod1=$(kubectl get pod -n demos -o name | head -n 1)
 echo $pod1
@@ -163,6 +167,7 @@ kubectl get service -n demos
 cat deploy/deployment-client.yaml | envsubst | kubectl apply -f -
 kubectl get deployment -n demos
 kubectl get pods -n demos
+kubectl get nodes
 
 # Wipe out the resources
 az group delete --name $resource_group_name -y

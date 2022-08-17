@@ -29,6 +29,7 @@ spec:
           env:
             - name: SERVER
               value: "$server_address"
+              # value: "$server_address_internal"
             - name: PORT
               value: "10000"
             - name: INTERVAL
