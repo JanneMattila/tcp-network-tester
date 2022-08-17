@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tcp-app
+  namespace: demos
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: tcp-app
+  template:
+    metadata:
+      labels:
+        app: tcp-app
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+        - image: $registry_name/$image_name:$image_tag
+          imagePullPolicy: Always
+          name: tcp-app
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 150m
+              memory: 150Mi
+          ports:
+            - containerPort: 10000
+              name: tcp
+              protocol: TCP
