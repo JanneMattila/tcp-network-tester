@@ -41,12 +41,19 @@ while (!cancellationToken.IsCancellationRequested)
     if (!string.IsNullOrEmpty(reportUri) &&
         lastReported < DateTime.Now.AddSeconds(-reportInterval))
     {
-        await httpClient.PostAsJsonAsync(reportUri, new ServerStatistics()
+        try
         {
-            MachineName = Environment.MachineName,
-            Clients = connections.Count
-        });
-        lastReported = DateTime.Now;
+            await httpClient.PostAsJsonAsync(reportUri, new ServerStatistics()
+            {
+                MachineName = Environment.MachineName,
+                Clients = connections.Count
+            });
+            lastReported = DateTime.Now;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
     }
 
     if (tcpListener.Pending())
@@ -68,12 +75,14 @@ while (!cancellationToken.IsCancellationRequested)
         if (currentCount != lastReportedCount)
         {
             lastReportedCount = currentCount;
-            Console.WriteLine($"{currentCount} connected");
+            Console.WriteLine($"{DateTime.Now} {currentCount} connected");
         }
         else
         {
             var lastUpdated = DateTime.Now.Add(TimeSpan.FromSeconds(-interval));
             var disconnectedClients = new List<ServerConnection>();
+
+            var start = DateTime.Now;
             foreach (var connection in connections)
             {
                 if (connection.Client.Available > 0)
@@ -88,10 +97,24 @@ while (!cancellationToken.IsCancellationRequested)
                 }
             }
 
+            var end = DateTime.Now;
+            var update = (int)(end - start).TotalSeconds;
+            Console.WriteLine($"{DateTime.Now} Validated {connections.Count} client connections. It took {update} seconds. Disconnecting {disconnectedClients.Count} client connections.");
+
             if (disconnectedClients.Any())
             {
                 foreach (var disconnectedClient in disconnectedClients)
                 {
+                    try
+                    {
+                        disconnectedClient.Stream.Close();
+                        disconnectedClient.Client.Close();
+                        disconnectedClient.Client.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"{DateTime.Now} Exception while disconnecting client: {ex}");
+                    }
                     connections.Remove(disconnectedClient);
                 }
             }

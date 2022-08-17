@@ -28,6 +28,8 @@ Console.CancelKeyPress += (sender, e) =>
 
 try
 {
+    Console.WriteLine($"{DateTime.Now} Creating {clientCount} client connections");
+
     for (int i = 0; i < clientCount; i++)
     {
         var client = new TcpClient(server, port)
@@ -38,13 +40,23 @@ try
         connections.Add(new ClientConnection(client, client.GetStream()));
     }
 
+    Console.WriteLine($"{DateTime.Now} Created {clientCount} client connections");
     while (!cancellationToken.IsCancellationRequested)
     {
+        var start = DateTime.Now;
         foreach (var connection in connections)
         {
             await connection.Stream.WriteAsync(buffer, 0, buffer.Length, cancellationToken.Token);
         }
-        await Task.Delay(TimeSpan.FromSeconds(interval), cancellationToken.Token);
+
+        var end = DateTime.Now;
+        var update = (int)(end - start).TotalSeconds;
+        Console.WriteLine($"{DateTime.Now} Updated {connections.Count} connections to server. It took {update} seconds. Continue after {interval} seconds.");
+
+        if (update < interval)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(interval - update), cancellationToken.Token);
+        }
     }
 
     foreach (var connection in connections)

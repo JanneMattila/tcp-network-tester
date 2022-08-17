@@ -4,9 +4,7 @@ metadata:
   name: tcp-server
   namespace: demos
 spec:
-  replicas: 3
-  strategy:
-    type: RollingUpdate
+  replicas: 1
   selector:
     matchLabels:
       app: tcp-server
@@ -23,11 +21,11 @@ spec:
           name: tcp-server
           resources:
             requests:
-              cpu: 100m
-              memory: 100Mi
+              cpu: 1000m
+              memory: 1000Mi
             limits:
-              cpu: 150m
-              memory: 150Mi
+              cpu: 2000m
+              memory: 1000Mi
           ports:
             - containerPort: 10000
               name: tcp

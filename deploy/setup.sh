@@ -107,24 +107,26 @@ kubectl get nodes
 kubectl apply -f deploy/namespace.yaml
 kubectl apply -f deploy/services.yaml
 
-# Build images to ACR
-az acr login -n $acr_name
-# - Server
-docker build -t tcp-network-tester-server:latest -f ./src/Server/Dockerfile .
-docker tag tcp-network-tester-server:latest "$acr_loginServer/tcp-network-tester-server:latest"
-docker push "$acr_loginServer/tcp-network-tester-server:latest"
-# - Server stats
-docker build -t tcp-network-tester-server-stats:latest -f ./src/ServerStatistics/Dockerfile .
-docker tag tcp-network-tester-server-stats:latest "$acr_loginServer/tcp-network-tester-server-stats:latest"
-docker push "$acr_loginServer/tcp-network-tester-server-stats:latest"
-# - Client
-docker build -t tcp-network-tester-client:latest -f ./src/Client/Dockerfile .
-docker tag tcp-network-tester-client:latest "$acr_loginServer/tcp-network-tester-client:latest"
-docker push "$acr_loginServer/tcp-network-tester-client:latest"
-
 # Set deployment variables
 registry_name=$acr_loginServer
-image_tag=latest
+image_tag=v1
+
+# Build images to ACR
+az acr login -n $acr_name
+docker images
+
+# - Server stats
+docker build -t tcp-network-tester-server-stats:$image_tag -f ./src/ServerStatistics/Dockerfile .
+docker tag tcp-network-tester-server-stats:$image_tag "$acr_loginServer/tcp-network-tester-server-stats:$image_tag"
+docker push "$acr_loginServer/tcp-network-tester-server-stats:$image_tag"
+# - Server
+docker build -t tcp-network-tester-server:$image_tag -f ./src/Server/Dockerfile .
+docker tag tcp-network-tester-server:$image_tag "$acr_loginServer/tcp-network-tester-server:$image_tag"
+docker push "$acr_loginServer/tcp-network-tester-server:$image_tag"
+# - Client
+docker build -t tcp-network-tester-client:$image_tag -f ./src/Client/Dockerfile .
+docker tag tcp-network-tester-client:$image_tag "$acr_loginServer/tcp-network-tester-client:$image_tag"
+docker push "$acr_loginServer/tcp-network-tester-client:$image_tag"
 
 cat deploy/deployment-server-stats.yaml | envsubst | kubectl apply -f -
 
@@ -160,6 +162,7 @@ kubectl get service -n demos
 
 cat deploy/deployment-client.yaml | envsubst | kubectl apply -f -
 kubectl get deployment -n demos
+kubectl get pods -n demos
 
 # Wipe out the resources
 az group delete --name $resource_group_name -y

@@ -4,9 +4,7 @@ metadata:
   name: tcp-client
   namespace: demos
 spec:
-  replicas: 5
-  strategy:
-    type: RollingUpdate
+  replicas: 1
   selector:
     matchLabels:
       app: tcp-client
@@ -26,16 +24,14 @@ spec:
               cpu: 100m
               memory: 100Mi
             limits:
-              cpu: 150m
-              memory: 150Mi
+              cpu: 1000m
+              memory: 1500Mi
           env:
             - name: SERVER
               value: "$server_address"
             - name: PORT
               value: "10000"
             - name: INTERVAL
-              value: "15"
-            - name: INTERNAL
               value: "15"
             - name: CLIENTCOUNT
               value: "10000"
