@@ -52,6 +52,8 @@ docker run --rm tcp-network-tester-client:latest
 
 => `16 IPs * 64'512 SNAT ports = 1'032'192`
 
+[NAT Gateway limits](https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/azure-subscription-service-limits?toc=%2Fazure%2Fvirtual-network%2Ftoc.json#nat-gateway-limits)
+
 [Dive deep into NAT gateway’s SNAT port behavior](https://azure.microsoft.com/en-us/blog/dive-deep-into-nat-gateway-s-snat-port-behavior/)
 
 [AKS & Managed NAT Gateway](https://docs.microsoft.com/en-us/azure/aks/nat-gateway)

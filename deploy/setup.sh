@@ -10,6 +10,7 @@ acr_name="cmyakstcp000000010"
 workspace_name="log-myakstcpworkspace"
 vnet_name="vnet-myakstcp"
 subnet_aks_name="snet-aks"
+subnet_client_name="snet-client"
 nat_gateway_name="ng-aks"
 ip_prefix_name="ippre-nat-aks"
 public_ip_name_prefix="pip"
@@ -58,6 +59,11 @@ subnet_aks_id=$(az network vnet subnet create -g $resource_group_name --vnet-nam
   --query id -o tsv)
 echo $subnet_aks_id
 
+subnet_client_aks_id=$(az network vnet subnet create -g $resource_group_name --vnet-name $vnet_name \
+  --name $subnet_client_name --address-prefixes 10.3.0.0/24 \
+  --query id -o tsv)
+echo $subnet_client_aks_id
+
 # Create Public IP Prefix for 16 IPs
 az network public-ip prefix create --length 28 --name $ip_prefix_name --resource-group $resource_group_name
 
@@ -70,6 +76,9 @@ az network nat gateway create --name $nat_gateway_name \
 az network vnet subnet update -g $resource_group_name \
   --vnet-name $vnet_name --name $subnet_aks_name \
   --nat-gateway $nat_gateway_name
+# az network vnet subnet update -g $resource_group_name \
+#   --vnet-name $vnet_name --name $subnet_client_name \
+#   --nat-gateway $nat_gateway_name
 
 cluster_identity_json=$(az identity create --name $cluster_identity_name --resource-group $resource_group_name -o json)
 kubelet_identity_json=$(az identity create --name $kubelet_identity_name --resource-group $resource_group_name -o json)
@@ -125,7 +134,9 @@ kubelogin convert-kubeconfig -l azurecli
 kubectl get nodes
 
 kubectl apply -f deploy/namespace.yaml
-kubectl apply -f deploy/services.yaml
+kubectl apply -f deploy/services-server-stats.yaml
+kubectl apply -f deploy/services-server.yaml
+kubectl apply -f deploy/services-server-internal.yaml
 
 # Set deployment variables
 registry_name=$acr_loginServer

@@ -28,8 +28,9 @@ spec:
               memory: 1500Mi
           env:
             - name: SERVER
-              value: "$server_address"
-              # value: "$server_address_internal"
+              # value: "10.2.0.38"
+              # value: "$server_address"
+              value: "$server_address_internal"
             - name: PORT
               value: "10000"
             - name: INTERVAL
