@@ -5,12 +5,13 @@ set -a
 subscription_name="AzureDev"
 azuread_admin_group_contains="janne''s"
 
-aks_name="myakstcp"
+aks_server_name="myakstcp-server"
+aks_client_name="myakstcp-client"
 acr_name="cmyakstcp000000010"
 workspace_name="log-myakstcpworkspace"
 vnet_name="vnet-myakstcp"
-subnet_aks_name="snet-aks"
-subnet_client_name="snet-client"
+subnet_aks_server_name="snet-aks"
+subnet_aks_client_name="snet-client"
 nat_gateway_name="ng-aks"
 ip_prefix_name="ippre-nat-aks"
 public_ip_name_prefix="pip"
@@ -54,15 +55,15 @@ vnet_id=$(az network vnet create -g $resource_group_name --name $vnet_name \
   --query newVNet.id -o tsv)
 echo $vnet_id
 
-subnet_aks_id=$(az network vnet subnet create -g $resource_group_name --vnet-name $vnet_name \
-  --name $subnet_aks_name --address-prefixes 10.2.0.0/24 \
+subnet_aks_server_id=$(az network vnet subnet create -g $resource_group_name --vnet-name $vnet_name \
+  --name $subnet_aks_server_name --address-prefixes 10.2.0.0/24 \
   --query id -o tsv)
-echo $subnet_aks_id
+echo $subnet_aks_server_id
 
-subnet_client_aks_id=$(az network vnet subnet create -g $resource_group_name --vnet-name $vnet_name \
-  --name $subnet_client_name --address-prefixes 10.3.0.0/24 \
+subnet_aks_client_id=$(az network vnet subnet create -g $resource_group_name --vnet-name $vnet_name \
+  --name $subnet_aks_client_name --address-prefixes 10.3.0.0/24 \
   --query id -o tsv)
-echo $subnet_client_aks_id
+echo $subnet_aks_client_id
 
 # Create Public IP Prefix for 16 IPs
 az network public-ip prefix create --length 28 --name $ip_prefix_name --resource-group $resource_group_name
@@ -74,11 +75,11 @@ az network nat gateway create --name $nat_gateway_name \
 
 # Associate NAT Gateway to subnet
 az network vnet subnet update -g $resource_group_name \
-  --vnet-name $vnet_name --name $subnet_aks_name \
+  --vnet-name $vnet_name --name $subnet_aks_server_name \
   --nat-gateway $nat_gateway_name
-# az network vnet subnet update -g $resource_group_name \
-#   --vnet-name $vnet_name --name $subnet_client_name \
-#   --nat-gateway $nat_gateway_name
+az network vnet subnet update -g $resource_group_name \
+  --vnet-name $vnet_name --name $subnet_aks_client_name \
+  --nat-gateway $nat_gateway_name
 
 cluster_identity_json=$(az identity create --name $cluster_identity_name --resource-group $resource_group_name -o json)
 kubelet_identity_json=$(az identity create --name $kubelet_identity_name --resource-group $resource_group_name -o json)
@@ -97,7 +98,7 @@ echo $my_ip
 
 # --api-server-authorized-ip-ranges $my_ip \
 
-aks_json=$(az aks create -g $resource_group_name -n $aks_name \
+aks_server_json=$(az aks create -g $resource_group_name -n $aks_server_name \
  --max-pods 50 --network-plugin azure \
  --node-count 1 --enable-cluster-autoscaler --min-count 1 --max-count 4 \
  --node-osdisk-type Ephemeral \
@@ -111,24 +112,50 @@ aks_json=$(az aks create -g $resource_group_name -n $aks_name \
  --workspace-resource-id $workspace_id \
  --attach-acr $acr_id \
  --load-balancer-sku standard \
- --vnet-subnet-id $subnet_aks_id \
+ --vnet-subnet-id $subnet_aks_server_id \
  --assign-identity $cluster_identity_id \
  --assign-kubelet-identity $kubelet_identity_id \
  --outbound-type userAssignedNATGateway \
- --nat-gateway-managed-outbound-ip-count 16 \
+ -o json)
+
+#  --enable-node-public-ip \
+
+ aks_client_json=$(az aks create -g $resource_group_name -n $aks_client_name \
+ --max-pods 50 --network-plugin azure \
+ --node-count 2 \
+ --node-osdisk-type Ephemeral \
+ --node-vm-size Standard_D8ds_v4 \
+ --kubernetes-version 1.23.8 \
+ --enable-addons monitoring \
+ --enable-aad \
+ --enable-azure-rbac \
+ --disable-local-accounts \
+ --aad-admin-group-object-ids $azuread_admin_group_id \
+ --workspace-resource-id $workspace_id \
+ --attach-acr $acr_id \
+ --load-balancer-sku standard \
+ --vnet-subnet-id $subnet_aks_client_id \
+ --assign-identity $cluster_identity_id \
+ --assign-kubelet-identity $kubelet_identity_id \
+ --outbound-type userAssignedNATGateway \
  -o json)
 
 ###################################################################
 # Enable current ip
-az aks update -g $resource_group_name -n $aks_name --api-server-authorized-ip-ranges $my_ip
+az aks update -g $resource_group_name -n $aks_server_name --api-server-authorized-ip-ranges $my_ip
+az aks update -g $resource_group_name -n $aks_client_name --api-server-authorized-ip-ranges $my_ip
 
 # Clear all authorized ip ranges
-az aks update -g $resource_group_name -n $aks_name --api-server-authorized-ip-ranges ""
+az aks update -g $resource_group_name -n $aks_server_name --api-server-authorized-ip-ranges ""
+az aks update -g $resource_group_name -n $aks_client_name --api-server-authorized-ip-ranges ""
 ###################################################################
 
 sudo az aks install-cli
 
-az aks get-credentials -n $aks_name -g $resource_group_name --overwrite-existing
+az aks get-credentials -n $aks_server_name -g $resource_group_name --overwrite-existing
+kubelogin convert-kubeconfig -l azurecli
+
+az aks get-credentials -n $aks_client_name -g $resource_group_name --overwrite-existing
 kubelogin convert-kubeconfig -l azurecli
 
 kubectl get nodes
@@ -179,16 +206,14 @@ curl $stats_server_address
 # -> OK!
 
 cat deploy/deployment-server.yaml | envsubst | kubectl apply -f -
+server_pod_ip_address=$(kubectl get pod -l=app=tcp-server -n demos -o jsonpath="{.items[0].status.podIP}")
+echo $server_pod_ip_address
+
 server_address=$(kubectl get service tcp-server-svc -n demos -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
 echo $server_address
 
 server_address_internal=$(kubectl get service tcp-server-internal-svc -n demos -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
 echo $server_address_internal
-
-kubectl get pod -n demos
-pod1=$(kubectl get pod -n demos -o name | head -n 1)
-echo $pod1
-kubectl exec --stdin --tty $pod1 -n demos -- /bin/sh
 
 kubectl describe $pod1 -n demos
 
@@ -198,6 +223,13 @@ cat deploy/deployment-client.yaml | envsubst | kubectl apply -f -
 kubectl get deployment -n demos
 kubectl get pods -n demos
 kubectl get nodes
+
+kubectl get pod -n demos
+pod1=$(kubectl get pod -n demos -o name | head -n 1)
+echo $pod1
+kubectl exec --stdin --tty $pod1 -n demos -- /bin/sh
+wget -q --output-document - https://echo.jannemattila.com/pages/echo 
+exit
 
 # Wipe out the resources
 az group delete --name $resource_group_name -y

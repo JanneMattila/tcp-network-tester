@@ -29,8 +29,9 @@ spec:
           env:
             - name: SERVER
               # value: "10.2.0.38"
-              # value: "$server_address"
-              value: "$server_address_internal"
+              value: "$server_address"
+              # value: "$server_address_internal"
+              # value: "$server_pod_ip_address"
             - name: PORT
               value: "10000"
             - name: INTERVAL

@@ -42,6 +42,8 @@ docker run --rm tcp-network-tester-client:latest
 
 > Each IP address provides 64,000 ports that can be used for SNAT
 
+[How do I check my SNAT port usage and allocation?](https://docs.microsoft.com/en-us/azure/load-balancer/load-balancer-standard-diagnostics#how-do-i-check-my-snat-port-usage-and-allocation)
+
 [What is Virtual Network NAT?](https://docs.microsoft.com/en-us/azure/virtual-network/nat-gateway/nat-overview)
 
 [NAT Gateway performance](https://docs.microsoft.com/en-us/azure/virtual-network/nat-gateway/nat-gateway-resource#performance)
