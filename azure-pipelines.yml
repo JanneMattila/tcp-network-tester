@@ -40,3 +40,13 @@ stages:
               tags: |
                 $(Build.BuildNumber)
                 latest
+          - task: Docker@2
+            inputs:
+              containerRegistry: "DockerHub"
+              repository: $(repositoryServerStats)
+              command: "buildAndPush"
+              Dockerfile: "src/ServerStatistics/Dockerfile"
+              buildContext:
+              tags: |
+                $(Build.BuildNumber)
+                latest
