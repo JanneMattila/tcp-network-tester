@@ -6,10 +6,11 @@ lb_name="lb-vm"
 lb_frontend_name="frontend"
 lb_backend_name="backend"
 lb_health_probe_name="health"
-lb_rule_name="rule1"
+lb_rule_tcp_name="tcp-rule"
 
 nsg_name="nsg-vm"
-nsg_rule_name="tcprule"
+nsg_rule_tcp_name="tcp-rule"
+nsg_rule_ssh_name="ssh-rule"
 
 vm_nic_names=(vm-nic1 vm-nic2)
 
@@ -23,15 +24,15 @@ az network lb create \
 
 az network lb probe create \
   --resource-group $resource_group_name \
-  --name $lb_name \
+  --lb-name $lb_name \
   --name $lb_health_probe_name \
   --protocol tcp \
   --port 10000
 
 az network lb rule create \
   --resource-group $resource_group_name \
-  --name $lb_name \
-  --name $lb_rule_name \
+  --lb-name $lb_name \
+  --name $lb_rule_tcp_name \
   --protocol tcp \
   --frontend-port 10000 \
   --backend-port 10000 \
@@ -48,7 +49,7 @@ az network nsg create \
 az network nsg rule create \
   --resource-group $resource_group_name \
   --nsg-name $nsg_name \
-  --name $nsg_rule_name \
+  --name $nsg_rule_tcp_name \
   --protocol '*' \
   --direction inbound \
   --source-address-prefix '*' \
@@ -58,37 +59,78 @@ az network nsg rule create \
   --access allow \
   --priority 100
 
+az network nsg rule create \
+  --resource-group $resource_group_name \
+  --nsg-name $nsg_name \
+  --name $nsg_rule_ssh_name \
+  --protocol '*' \
+  --direction inbound \
+  --source-address-prefix '*' \
+  --source-port-range '*' \
+  --destination-address-prefix '*' \
+  --destination-port-range 22 \
+  --access allow \
+  --priority 200
+
 vm_nic_names_list=$(IFS=, ; echo "${vm_nic_names[*]}")
 echo $vm_nic_names_list
+vm_nic_ids=()
 
 for vm_nic_name in "${vm_nic_names[@]}"
 do
-  az network nic create \
+  echo $vm_nic_name
+  vm_nic_id=$(az network nic create \
     --resource-group $resource_group_name \
-    --name $vm_nic \
-    --subnet $subnet_vm_id
+    --name $vm_nic_name \
+    --subnet $subnet_vm_id \
+    --query NewNIC.id -o tsv)
+  echo $vm_nic_id
+  vm_nic_ids+=($vm_nic_id)
 done
+
+vm_public_ip_json=$(az network public-ip create \
+  --resource-group $resource_group_name  \
+  --sku Standard \
+  --allocation-method Static \
+  --name "pip-$vm_name")
+vm_public_ip_id=$(echo $vm_public_ip_json | jq -r .publicIp.id)
+echo $vm_public_ip_id
 
 vm_json=$(az vm create \
   --resource-group $resource_group_name  \
   --name $vm_name \
   --image UbuntuLTS \
+  --public-ip-address $vm_public_ip_id \
   --size Standard_DS3_v2 \
-  --public-ip-address "$vm_name-pip" \
-  --public-ip-sku Standard \
-  --nics $vm_nic_names_list \
-  --nsg-rule SSH \
-  --subnet $subnet_vm_id \
+  --accelerated-networking true \
   --admin-username $vm_username \
-  --admin-password $vm_password \
-  -o json)
+  --admin-password $vm_password)
+
+# Need to deallocate to add NICs
+az vm deallocate \
+  --resource-group $resource_group_name  \
+  --name $vm_name
 
 for vm_nic_name in "${vm_nic_names[@]}"
 do
+  echo $vm_nic_name
+  az vm nic add \
+    --resource-group $resource_group_name \
+    --vm-name $vm_name \
+    --nics $vm_nic_name
+done
+
+for vm_nic_name in "${vm_nic_names[@]}"
+do
+  echo $vm_nic_name
   az network nic ip-config address-pool add \
     --resource-group $resource_group_name \
-    --name $lb_name \
+    --lb-name $lb_name \
     --address-pool $lb_backend_name \
     --ip-config-name ipconfig1 \
-    --nic-name $vm_nic_name \
+    --nic-name $vm_nic_name
 done
+
+az vm start \
+  --resource-group $resource_group_name  \
+  --name $vm_name
