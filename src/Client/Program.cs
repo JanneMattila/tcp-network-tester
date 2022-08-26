@@ -59,6 +59,12 @@ try
         }
     }
 
+    if (!connections.Any())
+    {
+        Console.WriteLine($"{DateTime.Now} Couldn't create a single client. Exiting!");
+        return;
+    }
+
     Console.WriteLine($"{DateTime.Now} Created {clientCount} client connections");
     while (!cancellationToken.IsCancellationRequested)
     {

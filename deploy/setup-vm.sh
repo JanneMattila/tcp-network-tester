@@ -94,7 +94,9 @@ vm_public_ip_json=$(az network public-ip create \
   --allocation-method Static \
   --name "pip-$vm_name")
 vm_public_ip_id=$(echo $vm_public_ip_json | jq -r .publicIp.id)
+vm_public_ip_address=$(echo $vm_public_ip_json | jq -r .publicIp.ipAddress)
 echo $vm_public_ip_id
+echo $vm_public_ip_address
 
 vm_json=$(az vm create \
   --resource-group $resource_group_name  \
@@ -103,6 +105,7 @@ vm_json=$(az vm create \
   --public-ip-address $vm_public_ip_id \
   --size Standard_DS3_v2 \
   --accelerated-networking true \
+  --nsg $nsg_name \
   --admin-username $vm_username \
   --admin-password $vm_password)
 
@@ -134,3 +137,26 @@ done
 az vm start \
   --resource-group $resource_group_name  \
   --name $vm_name
+
+echo $vm_password
+ssh $vm_username@$vm_public_ip_address
+
+# Or using sshpass
+sshpass -p $vm_password ssh $vm_username@$vm_public_ip_address
+
+# Setup VM
+sudo apt update
+sudo apt install docker.io -y
+
+# Update your public stats server address here
+stats_server_address=11.22.33.44
+
+sudo docker run --rm -p "10000:10000" \
+  -e PORT=10000 \
+  -e INTERVAL=1000 \
+  -e REPORTURI=http://$stats_server_address/api/ServerStatistics \
+  -e REPORTINTERVAL=10 \
+  jannemattila/tcp-network-tester-server:latest
+
+# Exit VM
+exit
