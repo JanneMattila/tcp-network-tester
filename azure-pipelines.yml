@@ -1,37 +1,42 @@
 variables:
-  repositoryServerStats: 'jannemattila/tcp-network-tester-server-stats'
-  repositoryServer: 'jannemattila/tcp-network-tester-server'
-  repositoryClient: 'jannemattila/tcp-network-tester-client'
+  repositoryServerStats: "jannemattila/tcp-network-tester-server-stats"
+  repositoryServer: "jannemattila/tcp-network-tester-server"
+  repositoryClient: "jannemattila/tcp-network-tester-client"
 
 trigger:
-- main
-- develop
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - src
 
 name: 1.0.$(Rev:r)
 stages:
-- stage: Build
-  jobs:
-  - job: Build
-    pool:
-      vmImage: ubuntu-latest
-    steps:
-    - task: Docker@2
-      inputs:
-        containerRegistry: 'DockerHub'
-        repository: $(repositoryServer)
-        command: 'buildAndPush'
-        Dockerfile: 'src/Server/Dockerfile'
-        buildContext:
-        tags: |
-          $(Build.BuildNumber)
-          latest
-    - task: Docker@2
-      inputs:
-        containerRegistry: 'DockerHub'
-        repository: $(repositoryClient)
-        command: 'buildAndPush'
-        Dockerfile: 'src/Client/Dockerfile'
-        buildContext:
-        tags: |
-          $(Build.BuildNumber)
-          latest
+  - stage: Build
+    jobs:
+      - job: Build
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: Docker@2
+            inputs:
+              containerRegistry: "DockerHub"
+              repository: $(repositoryServer)
+              command: "buildAndPush"
+              Dockerfile: "src/Server/Dockerfile"
+              buildContext:
+              tags: |
+                $(Build.BuildNumber)
+                latest
+          - task: Docker@2
+            inputs:
+              containerRegistry: "DockerHub"
+              repository: $(repositoryClient)
+              command: "buildAndPush"
+              Dockerfile: "src/Client/Dockerfile"
+              buildContext:
+              tags: |
+                $(Build.BuildNumber)
+                latest

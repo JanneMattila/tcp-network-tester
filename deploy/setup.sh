@@ -11,6 +11,7 @@ acr_name="cmyakstcp000000010"
 workspace_name="log-myakstcpworkspace"
 vnet_name="vnet-myakstcp"
 subnet_aks_server_name="snet-aks"
+subnet_vm_name="snet-vm"
 subnet_aks_client_name="snet-client"
 nat_gateway_name="ng-aks"
 ip_prefix_name="ippre-nat-aks"
@@ -65,6 +66,11 @@ subnet_aks_client_id=$(az network vnet subnet create -g $resource_group_name --v
   --query id -o tsv)
 echo $subnet_aks_client_id
 
+subnet_vm_id=$(az network vnet subnet create -g $resource_group_name --vnet-name $vnet_name \
+  --name $subnet_vm_name --address-prefixes 10.4.0.0/24 \
+  --query id -o tsv)
+echo $subnet_vm_id
+
 # Create Public IP Prefix for 16 IPs
 az network public-ip prefix create --length 28 --name $ip_prefix_name --resource-group $resource_group_name
 
@@ -100,7 +106,7 @@ echo $my_ip
 
 aks_server_json=$(az aks create -g $resource_group_name -n $aks_server_name \
  --max-pods 50 --network-plugin azure \
- --node-count 1 --enable-cluster-autoscaler --min-count 1 --max-count 4 \
+ --node-count 2 --enable-cluster-autoscaler --min-count 2 --max-count 4 \
  --node-osdisk-type Ephemeral \
  --node-vm-size Standard_D8ds_v4 \
  --kubernetes-version 1.23.8 \
@@ -115,9 +121,9 @@ aks_server_json=$(az aks create -g $resource_group_name -n $aks_server_name \
  --vnet-subnet-id $subnet_aks_server_id \
  --assign-identity $cluster_identity_id \
  --assign-kubelet-identity $kubelet_identity_id \
- --outbound-type userAssignedNATGateway \
  -o json)
 
+# --outbound-type userAssignedNATGateway \
 #  --enable-node-public-ip \
 
  aks_client_json=$(az aks create -g $resource_group_name -n $aks_client_name \
@@ -220,8 +226,10 @@ kubectl describe $pod1 -n demos
 kubectl get service -n demos
 
 cat deploy/deployment-client.yaml | envsubst | kubectl apply -f -
+cat deploy/deployment-client.yaml | envsubst | kubectl delete -f -
+
 kubectl get deployment -n demos
-kubectl get pods -n demos
+kubectl get pods -n demos -o wide
 kubectl get nodes
 
 kubectl get pod -n demos
