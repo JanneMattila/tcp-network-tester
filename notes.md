@@ -126,3 +126,29 @@ Above configuration exposes `tcp-server` to the internet.
 If you now run `tcp-client` using the external address 
 `52.138.196.60`, you might notice that 1 replica still gives you
 10k connections and that your connections are gapped to 60k. 
+
+### Virtual Machine scenarios
+
+#### VM with Public IP
+
+If you create following architecture:
+
+![VM with Public IP](https://user-images.githubusercontent.com/2357647/186874197-daed556f-6bbc-4ce0-bc67-55a89ba9d4bb.png)
+
+You can scale to 100k with 10 `tcp-client`s.
+
+#### VM with 1 NIC and Load Balancer
+
+If you create following architecture:
+
+![VM with 1 NIC and Load Balancer](https://user-images.githubusercontent.com/2357647/186874799-4f4ed0e5-8dc7-4595-a2c1-2ca52a7452e9.png)
+
+TBA
+
+#### VM with 2 NICs and Load Balancer
+
+If you create following architecture:
+
+![VM with 2 NICs and Load Balancer](https://user-images.githubusercontent.com/2357647/186874961-41259c78-ddc7-4ebd-b3b5-197176f67a25.png)
+
+TBA

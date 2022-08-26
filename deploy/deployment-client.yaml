@@ -13,6 +13,8 @@ spec:
       labels:
         app: tcp-client
     spec:
+      # Force to specific node
+      # nodeName: aks-nodepool1-36018113-vmss000000
       nodeSelector:
         kubernetes.io/os: linux
       containers:
@@ -28,8 +30,8 @@ spec:
               memory: 1500Mi
           env:
             - name: SERVER
-              # value: "10.2.0.38"
-              value: "$server_address"
+              value: "10.4.0.5"
+              # value: "$server_address"
               # value: "$server_address_internal"
               # value: "$server_pod_ip_address"
             - name: PORT

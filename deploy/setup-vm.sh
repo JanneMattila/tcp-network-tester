@@ -14,11 +14,21 @@ nsg_rule_ssh_name="ssh-rule"
 
 vm_nic_names=(vm-nic1 vm-nic2)
 
+lb_public_ip_json=$(az network public-ip create \
+  --resource-group $resource_group_name  \
+  --sku Standard \
+  --allocation-method Static \
+  --name "pip-lb")
+lb_public_ip_id=$(echo $lb_public_ip_json | jq -r .publicIp.id)
+lb_public_ip_address=$(echo $lb_public_ip_json | jq -r .publicIp.ipAddress)
+echo $lb_public_ip_id
+echo $lb_public_ip_address
+
 az network lb create \
   --resource-group $resource_group_name \
   --name $lb_name \
   --sku Standard \
-  --subnet $subnet_vm_id \
+  --public-ip-address $lb_public_ip_id \
   --frontend-ip-name $lb_frontend_name \
   --backend-pool-name $lb_backend_name
 
@@ -83,6 +93,7 @@ do
     --resource-group $resource_group_name \
     --name $vm_nic_name \
     --subnet $subnet_vm_id \
+    --accelerated-networking true \
     --query NewNIC.id -o tsv)
   echo $vm_nic_id
   vm_nic_ids+=($vm_nic_id)
@@ -139,6 +150,8 @@ az vm start \
   --name $vm_name
 
 echo $vm_password
+echo stats_server_address=$stats_server_address
+echo $vm_public_ip_address
 ssh $vm_username@$vm_public_ip_address
 
 # Or using sshpass
@@ -148,8 +161,8 @@ sshpass -p $vm_password ssh $vm_username@$vm_public_ip_address
 sudo apt update
 sudo apt install docker.io -y
 
-# Update your public stats server address here
-stats_server_address=11.22.33.44
+# Update your public stats server address
+# stats_server_address=11.22.33.44
 
 sudo docker run --rm -p "10000:10000" \
   -e PORT=10000 \

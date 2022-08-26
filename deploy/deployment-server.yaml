@@ -13,6 +13,8 @@ spec:
       labels:
         app: tcp-server
     spec:
+      # Force to specific node
+      # nodeName: aks-nodepool1-36018113-vmss000001
       nodeSelector:
         kubernetes.io/os: linux
       containers:

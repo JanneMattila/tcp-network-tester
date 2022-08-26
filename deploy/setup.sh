@@ -175,6 +175,9 @@ kubectl apply -f deploy/services-server-internal.yaml
 registry_name=$acr_loginServer
 image_tag=v1
 
+registry_name=jannemattila # For Docker Hub images
+image_tag=1.0.1 # For Docker Hub images
+
 # Build images to ACR
 az acr login -n $acr_name
 docker images
@@ -226,6 +229,7 @@ kubectl describe $pod1 -n demos
 kubectl get service -n demos
 
 cat deploy/deployment-client.yaml | envsubst | kubectl apply -f -
+
 cat deploy/deployment-client.yaml | envsubst | kubectl delete -f -
 
 kubectl get deployment -n demos

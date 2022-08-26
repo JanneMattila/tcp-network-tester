@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Server;
+using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
 
@@ -35,7 +36,7 @@ Console.CancelKeyPress += (sender, e) =>
 };
 
 Console.WriteLine("Starting server");
-var tcpListener = TcpListener.Create(port);
+var tcpListener = new TcpListener(IPAddress.Any, port);
 tcpListener.Start();
 
 while (!cancellationToken.IsCancellationRequested)

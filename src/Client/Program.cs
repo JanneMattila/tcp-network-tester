@@ -65,7 +65,7 @@ try
         return;
     }
 
-    Console.WriteLine($"{DateTime.Now} Created {clientCount} client connections");
+    Console.WriteLine($"{DateTime.Now} Created {connections.Count} client connections");
     while (!cancellationToken.IsCancellationRequested)
     {
         foreach (var connection in connections)
