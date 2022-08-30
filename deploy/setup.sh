@@ -104,6 +104,10 @@ echo $my_ip
 
 # --api-server-authorized-ip-ranges $my_ip \
 
+ # --load-balancer-managed-outbound-ip-count 4 \
+ # --load-balancer-outbound-ports 4000
+ # -> 64000 ports per ip * / 8000 outbound ports * 4 public IPs = 32 nodes
+
 aks_server_json=$(az aks create -g $resource_group_name -n $aks_server_name \
  --max-pods 50 --network-plugin azure \
  --node-count 2 --enable-cluster-autoscaler --min-count 2 --max-count 4 \
@@ -118,13 +122,15 @@ aks_server_json=$(az aks create -g $resource_group_name -n $aks_server_name \
  --workspace-resource-id $workspace_id \
  --attach-acr $acr_id \
  --load-balancer-sku standard \
+ --load-balancer-managed-outbound-ip-count 4 \
+ --load-balancer-outbound-ports 8000
  --vnet-subnet-id $subnet_aks_server_id \
  --assign-identity $cluster_identity_id \
  --assign-kubelet-identity $kubelet_identity_id \
  -o json)
 
 # --outbound-type userAssignedNATGateway \
-#  --enable-node-public-ip \
+# --enable-node-public-ip \
 
  aks_client_json=$(az aks create -g $resource_group_name -n $aks_client_name \
  --max-pods 50 --network-plugin azure \

@@ -30,10 +30,12 @@ spec:
               memory: 1500Mi
           env:
             - name: SERVER
-              value: "10.4.0.5"
-              # value: "$server_address"
-              # value: "$server_address_internal"
-              # value: "$server_pod_ip_address"
+              # value: "10.4.0.4"
+              # value: "$vm_public_ip_address"
+              # value: "$vm_private_ip_address"
+              value: "$server_address"
+            # value: "$server_address_internal"
+            # value: "$server_pod_ip_address"
             - name: PORT
               value: "10000"
             - name: INTERVAL
