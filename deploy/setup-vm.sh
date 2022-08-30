@@ -50,6 +50,7 @@ az network lb rule create \
   --backend-pool-name $lb_backend_name \
   --probe-name $lb_health_probe_name \
   --idle-timeout 15 \
+  --disable-outbound-snat true \
   --enable-tcp-reset true
 
 az network nsg create \
@@ -98,6 +99,12 @@ do
   echo $vm_nic_id
   vm_nic_ids+=($vm_nic_id)
 done
+
+vm_private_ip_address=$(az network nic show \
+  --resource-group $resource_group_name \
+  --name $vm_nic_names \
+  --query ipConfigurations[0].privateIpAddress -o tsv)
+echo $vm_private_ip_address
 
 vm_public_ip_json=$(az network public-ip create \
   --resource-group $resource_group_name  \
@@ -152,6 +159,8 @@ az vm start \
 echo $vm_password
 echo stats_server_address=$stats_server_address
 echo $vm_public_ip_address
+echo $vm_private_ip_address
+
 ssh $vm_username@$vm_public_ip_address
 
 # Or using sshpass
