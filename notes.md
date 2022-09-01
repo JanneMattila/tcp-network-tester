@@ -156,11 +156,9 @@ aks create -n $aks_server_name \
  --outbound-type userAssignedNATGateway
 ```
 
-| Test                    | Connections |
-| ----------------------- | ----------- |
-| 1 Node with 1 replica   | 10'000      |
-| 1 Node with 5 replicas  | 50'000      |
-| 1 Node with 10 replicas | 100'000     |
+| Test                  | Connections |
+| --------------------- | ----------- |
+| 1 Node with 1 replica |             |
 
 ## Server side test setup with Virtual Machine
 
