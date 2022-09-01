@@ -213,7 +213,15 @@ If you now scale `tcp-client` to 10 replicas:
 
 ![10 client replicate with total 100k connections](https://user-images.githubusercontent.com/2357647/185671375-4498a7b6-dc9a-4593-952a-a53886da999a.png)
 
-Above means that `tcp-server` can maintain `100'000` connections.
+If you now scale `tcp-client` to 20 replicas:
+
+![20 client replicate with total 200k connections](https://user-images.githubusercontent.com/2357647/187915561-5d068617-9bbc-4085-9895-422a9a9d4e17.png)
+
+Above means that `tcp-server` can maintain `200'000` connections.
+
+After `250'000` connections test application is unable anymore take in connections:
+
+![25 client replicate with total 250k connections](https://user-images.githubusercontent.com/2357647/187916203-bc3c7ab9-89ca-4d4f-a205-222042ab38c0.png)
 
 ### Connection via internal Load Balancer
 
