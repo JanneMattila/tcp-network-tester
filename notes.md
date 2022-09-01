@@ -47,33 +47,33 @@ Example deployment of server contains these:
 - `tcp-server` 1 replica
   - `tcp-server-stats` address is provided as parameter for reporting purposes
 
+## Client side test setup with AKS
 
-## Client side
+Here are some examples to better understand the AKS setup for client side cluster of the architecture.
 
-Here are some examples to better understand the AKS setup.
+Shared properties to all below client cluster scenarios:
 
-Common to all below scenarios:
-- `Azure CNI`
-- Standard Load Balancer
-- 1 Node
+- AKS Networking: `Azure CNI`
+- Load Balancer SKU: `Standard`
+- 1 Node (unless otherwise stated)
 
-### Default AKS setup: 1 Public IP in LB
+### Default AKS setup
 
-| Scenario              | Connections |
-| --------------------- | ----------- |
-| 1 Node with 1 replica | 1024        |
-
-Default AKS setup is similar to this command:
+If you deploy AKS with default settings, you'll get 1 Public IP in Load balancer:
 
 ```bash
-aks create -n $aks_server_name \
- ...
+az aks create -n $aks_server_name \
+ # ...
  --network-plugin azure \
  --load-balancer-sku standard \
  --node-count 1
  ```
 
-Above limit is coming from this [Configure the allocated outbound ports](https://docs.microsoft.com/en-us/azure/aks/load-balancer-standard#configure-the-allocated-outbound-ports):
+| Test                  | Connections |
+| --------------------- | ----------- |
+| 1 Node with 1 replica | 1024        |
+
+Above 1024 limit is coming from this [Configure the allocated outbound ports](https://docs.microsoft.com/en-us/azure/aks/load-balancer-standard#configure-the-allocated-outbound-ports):
 
 > **Note**
 > **By default, AKS sets AllocatedOutboundPorts on its load balancer to 0**,
@@ -83,15 +83,17 @@ Above limit is coming from this [Configure the allocated outbound ports](https:/
 
 ### Set outbound ports to 8'000
 
-| Scenario              | Connections |
-| --------------------- | ----------- |
-| 1 Node with 1 replica | 8'000       |
+If you modify outbound port allocation to e.g., `8000` in Load balancer:
 
 ```bash
-aks create -n $aks_server_name \
+az aks create -n $aks_server_name \
  ...
  --load-balancer-outbound-ports 8000
 ```
+
+| Test                  | Connections |
+| --------------------- | ----------- |
+| 1 Node with 1 replica | 8'000       |
 
 > **Warning**
 > Carefully [calculate](https://docs.microsoft.com/en-us/azure/aks/load-balancer-standard#configure-the-allocated-outbound-ports),
@@ -103,17 +105,19 @@ This scenario gives us 8 nodes:
 
 ### Set outbound ports to 8'000 and LB Public IPs to 2
 
-| Scenario                             | Connections |
-| ------------------------------------ | ----------- |
-| 1 Node with 1 replica                | 8'000       |
-| 2 Nodes with 2 replicas (1 per node) | ~12'500     |
-
 ```bash
-aks create -n $aks_server_name \
+az aks create -n $aks_server_name \
  ...
  --load-balancer-managed-outbound-ip-count 2 \
  --load-balancer-outbound-ports 8000
  ```
+
+| Test                                 | Connections |
+| ------------------------------------ | ----------- |
+| 1 Node with 1 replica                | 8'000       |
+| 1 Node with 2 replicas               |             |
+| 2 Nodes with 2 replicas (1 per node) | ~12'500     |
+| 2 Nodes with 4 replicas (2 per node) |             |
 
 This scenario gives us 16 nodes:
 
@@ -128,7 +132,7 @@ Important part from the
 
 ### Use NAT Gateway with Public IP Prefix for 16 IPs
 
-Deploy NAT Gateway:
+Deploy NAT Gateway and AKS:
 
 ```bash
 # Create Public IP Prefix for 16 IPs
@@ -146,17 +150,55 @@ az network nat gateway create --name $nat_gateway_name \
 az network vnet subnet update -g $resource_group_name \
   --vnet-name $vnet_name --name $subnet_aks_client_name \
   --nat-gateway $nat_gateway_name
-```
 
-| Scenario              | Connections |
-| --------------------- | ----------- |
-| 1 Node with 1 replica |             |
-
-```bash
 aks create -n $aks_server_name \
  ...
  --outbound-type userAssignedNATGateway
 ```
+
+| Test                    | Connections |
+| ----------------------- | ----------- |
+| 1 Node with 1 replica   | 10'000      |
+| 1 Node with 5 replicas  | 50'000      |
+| 1 Node with 10 replicas | 100'000     |
+
+## Server side test setup with Virtual Machine
+
+### VM with Public IP
+
+If you create following architecture:
+
+![VM with Public IP](https://user-images.githubusercontent.com/2357647/186874197-daed556f-6bbc-4ce0-bc67-55a89ba9d4bb.png)
+
+| Test      | Connections |
+| --------- | ----------- |
+| Public IP | ~60'000     |
+
+### VM with 1 NIC and Load Balancer
+
+If you create following architecture:
+
+![VM with 1 NIC and Load Balancer](https://user-images.githubusercontent.com/2357647/186874799-4f4ed0e5-8dc7-4595-a2c1-2ca52a7452e9.png)
+
+TBA
+
+### VM with 2 NICs and Load Balancer
+
+If you create following architecture:
+
+![VM with 2 NICs and Load Balancer](https://user-images.githubusercontent.com/2357647/186874961-41259c78-ddc7-4ebd-b3b5-197176f67a25.png)
+
+TBA
+
+### Server side test setup with AKS
+
+Here are some examples to better understand the AKS setup for server side cluster of the architecture.
+
+Shared properties to all below server cluster scenarios:
+
+- AKS Networking: `Azure CNI`
+- Load Balancer SKU: `Standard`
+- 1 Node (unless otherwise stated)
 
 ### Connection via internal Pod IP
 
@@ -237,29 +279,3 @@ Above configuration exposes `tcp-server` to the internet.
 If you now run `tcp-client` using the external address 
 `52.138.196.60`, you might notice that 1 replica still gives you
 10k connections and that your connections are gapped to 60k. 
-
-### Virtual Machine scenarios
-
-#### VM with Public IP
-
-If you create following architecture:
-
-![VM with Public IP](https://user-images.githubusercontent.com/2357647/186874197-daed556f-6bbc-4ce0-bc67-55a89ba9d4bb.png)
-
-You can scale to 100k with 10 `tcp-client`s.
-
-#### VM with 1 NIC and Load Balancer
-
-If you create following architecture:
-
-![VM with 1 NIC and Load Balancer](https://user-images.githubusercontent.com/2357647/186874799-4f4ed0e5-8dc7-4595-a2c1-2ca52a7452e9.png)
-
-TBA
-
-#### VM with 2 NICs and Load Balancer
-
-If you create following architecture:
-
-![VM with 2 NICs and Load Balancer](https://user-images.githubusercontent.com/2357647/186874961-41259c78-ddc7-4ebd-b3b5-197176f67a25.png)
-
-TBA

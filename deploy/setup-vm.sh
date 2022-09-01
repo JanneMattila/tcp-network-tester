@@ -13,7 +13,7 @@ nsg_rule_tcp_name="tcp-rule"
 nsg_rule_ssh_name="ssh-rule"
 
 vm_nic_names=(vm-nic1 vm-nic2)
-
+ 
 lb_public_ip_json=$(az network public-ip create \
   --resource-group $resource_group_name  \
   --sku Standard \
@@ -120,7 +120,8 @@ vm_json=$(az vm create \
   --resource-group $resource_group_name  \
   --name $vm_name \
   --image UbuntuLTS \
-  --public-ip-address $vm_public_ip_id \
+  --public-ip-address "pip-$vm_name" \
+  --subnet $subnet_vm_id \
   --size Standard_DS3_v2 \
   --accelerated-networking true \
   --nsg $nsg_name \
@@ -164,6 +165,7 @@ echo vm_password=$vm_password
 echo stats_server_address=$stats_server_address
 echo vm_public_ip_address=$vm_public_ip_address
 echo vm_private_ip_address=$vm_private_ip_address
+echo lb_public_ip_address=$lb_public_ip_address
 
 ssh $vm_username@$vm_public_ip_address
 
@@ -175,14 +177,14 @@ sudo apt update
 sudo apt install docker.io -y
 
 # Update your public stats server address
-# stats_server_address=11.22.33.44
+stats_server_address=11.22.33.44
 
 sudo docker run --rm -p "10000:10000" \
   -e PORT=10000 \
   -e INTERVAL=1000 \
   -e REPORTURI=http://$stats_server_address/api/ServerStatistics \
   -e REPORTINTERVAL=10 \
-  jannemattila/tcp-network-tester-server:latest
+  jannemattila/tcp-network-tester-server:1.0.2
 
 # Exit VM
 exit

@@ -10,9 +10,9 @@ aks_client_name="myakstcp-client"
 acr_name="cmyakstcp000000010"
 workspace_name="log-myakstcpworkspace"
 vnet_name="vnet-myakstcp"
-subnet_aks_server_name="snet-aks"
-subnet_vm_name="snet-vm"
+subnet_aks_server_name="snet-server"
 subnet_aks_client_name="snet-client"
+subnet_vm_name="snet-vm"
 nat_gateway_name="ng-aks"
 ip_prefix_name="ippre-nat-aks"
 public_ip_name_prefix="pip"
@@ -72,7 +72,10 @@ subnet_vm_id=$(az network vnet subnet create -g $resource_group_name --vnet-name
 echo $subnet_vm_id
 
 # Create Public IP Prefix for 16 IPs
-az network public-ip prefix create --length 28 --name $ip_prefix_name --resource-group $resource_group_name
+az network public-ip prefix create \
+  --length 28 \
+  --name $ip_prefix_name \
+  --resource-group $resource_group_name
 
 # Create NAT Gateway using Public IP Prefix
 az network nat gateway create --name $nat_gateway_name \
@@ -129,12 +132,11 @@ aks_server_json=$(az aks create -g $resource_group_name -n $aks_server_name \
  --assign-kubelet-identity $kubelet_identity_id \
  -o json)
 
-# --outbound-type userAssignedNATGateway \
 # --enable-node-public-ip \
 
- aks_client_json=$(az aks create -g $resource_group_name -n $aks_client_name \
+aks_client_json=$(az aks create -g $resource_group_name -n $aks_client_name \
  --max-pods 50 --network-plugin azure \
- --node-count 2 \
+ --node-count 1 \
  --node-osdisk-type Ephemeral \
  --node-vm-size Standard_D8ds_v4 \
  --kubernetes-version 1.23.8 \
@@ -146,11 +148,25 @@ aks_server_json=$(az aks create -g $resource_group_name -n $aks_server_name \
  --workspace-resource-id $workspace_id \
  --attach-acr $acr_id \
  --load-balancer-sku standard \
+ --outbound-type userAssignedNATGateway \
  --vnet-subnet-id $subnet_aks_client_id \
  --assign-identity $cluster_identity_id \
  --assign-kubelet-identity $kubelet_identity_id \
- --outbound-type userAssignedNATGateway \
  -o json)
+
+# Scale client nodepool1
+az aks nodepool scale  \
+  --resource-group $resource_group_name \
+  --cluster-name $aks_client_name \
+  --name nodepool1 \
+  --node-count 2
+
+# Change client Load balancer settings
+az aks update \
+  --resource-group $resource_group_name \
+  --name $aks_client_name \
+  --load-balancer-managed-outbound-ip-count 2 \
+  --load-balancer-outbound-ports 8000
 
 ###################################################################
 # Enable current ip
@@ -182,7 +198,7 @@ registry_name=$acr_loginServer
 image_tag=v1
 
 registry_name=jannemattila # For Docker Hub images
-image_tag=1.0.1 # For Docker Hub images
+image_tag=1.0.2 # For Docker Hub images
 
 # Build images to ACR
 az acr login -n $acr_name
@@ -241,6 +257,10 @@ cat deploy/deployment-client.yaml | envsubst | kubectl delete -f -
 kubectl get deployment -n demos
 kubectl get pods -n demos -o wide
 kubectl get nodes
+kubectl top pod -n demos
+
+telnet $vm_public_ip_address 10000
+telnet $lb_public_ip_address 10000
 
 kubectl get pod -n demos
 pod1=$(kubectl get pod -n demos -o name | head -n 1)
