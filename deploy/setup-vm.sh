@@ -156,10 +156,14 @@ az vm start \
   --resource-group $resource_group_name  \
   --name $vm_name
 
-echo $vm_password
+# Display variables
+# Remember to enable auto export
+set -a
+echo vm_username=$vm_username
+echo vm_password=$vm_password
 echo stats_server_address=$stats_server_address
-echo $vm_public_ip_address
-echo $vm_private_ip_address
+echo vm_public_ip_address=$vm_public_ip_address
+echo vm_private_ip_address=$vm_private_ip_address
 
 ssh $vm_username@$vm_public_ip_address
 

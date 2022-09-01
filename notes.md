@@ -47,6 +47,117 @@ Example deployment of server contains these:
 - `tcp-server` 1 replica
   - `tcp-server-stats` address is provided as parameter for reporting purposes
 
+
+## Client side
+
+Here are some examples to better understand the AKS setup.
+
+Common to all below scenarios:
+- `Azure CNI`
+- Standard Load Balancer
+- 1 Node
+
+### Default AKS setup: 1 Public IP in LB
+
+| Scenario              | Connections |
+| --------------------- | ----------- |
+| 1 Node with 1 replica | 1024        |
+
+Default AKS setup is similar to this command:
+
+```bash
+aks create -n $aks_server_name \
+ ...
+ --network-plugin azure \
+ --load-balancer-sku standard \
+ --node-count 1
+ ```
+
+Above limit is coming from this [Configure the allocated outbound ports](https://docs.microsoft.com/en-us/azure/aks/load-balancer-standard#configure-the-allocated-outbound-ports):
+
+> **Note**
+> **By default, AKS sets AllocatedOutboundPorts on its load balancer to 0**,
+> which enables automatic outbound port assignment based on backend pool size
+> when creating a cluster. For example, if a cluster has 50 or fewer nodes,
+> **1024 ports are allocated to each node**
+
+### Set outbound ports to 8'000
+
+| Scenario              | Connections |
+| --------------------- | ----------- |
+| 1 Node with 1 replica | 8'000       |
+
+```bash
+aks create -n $aks_server_name \
+ ...
+ --load-balancer-outbound-ports 8000
+```
+
+> **Warning**
+> Carefully [calculate](https://docs.microsoft.com/en-us/azure/aks/load-balancer-standard#configure-the-allocated-outbound-ports),
+> number of nodes you can have in your cluster, when changing these parameters.
+
+This scenario gives us 8 nodes:
+
+`64000 ports per ip / 8000 outbound ports * 1 public IPs = 8 nodes`
+
+### Set outbound ports to 8'000 and LB Public IPs to 2
+
+| Scenario                             | Connections |
+| ------------------------------------ | ----------- |
+| 1 Node with 1 replica                | 8'000       |
+| 2 Nodes with 2 replicas (1 per node) | ~12'500     |
+
+```bash
+aks create -n $aks_server_name \
+ ...
+ --load-balancer-managed-outbound-ip-count 2 \
+ --load-balancer-outbound-ports 8000
+ ```
+
+This scenario gives us 16 nodes:
+
+`64000 ports per ip / 8000 outbound ports * 2 public IPs = 16 nodes`
+
+Important part from the
+[documentation](https://docs.microsoft.com/en-us/azure/aks/load-balancer-standard#configure-the-allocated-outbound-ports) states:
+
+> **Note**
+> **Adding more IPs does not add more ports** to any node.
+> It provides capacity for more nodes in the cluster.
+
+### Use NAT Gateway with Public IP Prefix for 16 IPs
+
+Deploy NAT Gateway:
+
+```bash
+# Create Public IP Prefix for 16 IPs
+az network public-ip prefix create \
+  --length 28 \
+  --name $ip_prefix_name \
+  --resource-group $resource_group_name
+
+# Create NAT Gateway using Public IP Prefix
+az network nat gateway create --name $nat_gateway_name \
+  --resource-group $resource_group_name \
+  --public-ip-prefixes $ip_prefix_name
+
+# Associate NAT Gateway to client subnet
+az network vnet subnet update -g $resource_group_name \
+  --vnet-name $vnet_name --name $subnet_aks_client_name \
+  --nat-gateway $nat_gateway_name
+```
+
+| Scenario              | Connections |
+| --------------------- | ----------- |
+| 1 Node with 1 replica |             |
+
+```bash
+aks create -n $aks_server_name \
+ ...
+ --outbound-type userAssignedNATGateway
+```
+
 ### Connection via internal Pod IP
 
 `tcp-client` has been configured with `tcp-server` address 
