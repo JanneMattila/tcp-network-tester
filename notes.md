@@ -87,7 +87,7 @@ If you modify outbound port allocation to e.g., `8000` in Load balancer:
 
 ```bash
 az aks create -n $aks_server_name \
- ...
+ # ...
  --load-balancer-outbound-ports 8000
 ```
 
@@ -107,7 +107,7 @@ This scenario gives us 8 nodes:
 
 ```bash
 az aks create -n $aks_server_name \
- ...
+ # ...
  --load-balancer-managed-outbound-ip-count 2 \
  --load-balancer-outbound-ports 8000
  ```
@@ -152,7 +152,7 @@ az network vnet subnet update -g $resource_group_name \
   --nat-gateway $nat_gateway_name
 
 aks create -n $aks_server_name \
- ...
+ # ...
  --outbound-type userAssignedNATGateway
 ```
 
@@ -188,7 +188,7 @@ If you create following architecture:
 
 TBA
 
-### Server side test setup with AKS
+## Server side test setup with AKS
 
 Here are some examples to better understand the AKS setup for server side cluster of the architecture.
 

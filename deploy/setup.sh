@@ -87,6 +87,9 @@ az network vnet subnet update -g $resource_group_name \
   --vnet-name $vnet_name --name $subnet_aks_server_name \
   --nat-gateway $nat_gateway_name
 az network vnet subnet update -g $resource_group_name \
+  --vnet-name $vnet_name --name $subnet_vm_name \
+  --nat-gateway $nat_gateway_name
+az network vnet subnet update -g $resource_group_name \
   --vnet-name $vnet_name --name $subnet_aks_client_name \
   --nat-gateway $nat_gateway_name
 
@@ -113,7 +116,7 @@ echo $my_ip
 
 aks_server_json=$(az aks create -g $resource_group_name -n $aks_server_name \
  --max-pods 50 --network-plugin azure \
- --node-count 2 --enable-cluster-autoscaler --min-count 2 --max-count 4 \
+ --node-count 1 \
  --node-osdisk-type Ephemeral \
  --node-vm-size Standard_D8ds_v4 \
  --kubernetes-version 1.23.8 \
@@ -125,8 +128,7 @@ aks_server_json=$(az aks create -g $resource_group_name -n $aks_server_name \
  --workspace-resource-id $workspace_id \
  --attach-acr $acr_id \
  --load-balancer-sku standard \
- --load-balancer-managed-outbound-ip-count 4 \
- --load-balancer-outbound-ports 8000
+ --outbound-type userAssignedNATGateway \
  --vnet-subnet-id $subnet_aks_server_id \
  --assign-identity $cluster_identity_id \
  --assign-kubelet-identity $kubelet_identity_id \
@@ -258,6 +260,9 @@ kubectl get deployment -n demos
 kubectl get pods -n demos -o wide
 kubectl get nodes
 kubectl top pod -n demos
+
+vm_public_ip_address=11.22.33.44
+lb_public_ip_address=11.22.33.44
 
 telnet $vm_public_ip_address 10000
 telnet $lb_public_ip_address 10000

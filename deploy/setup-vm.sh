@@ -7,6 +7,7 @@ lb_frontend_name="frontend"
 lb_backend_name="backend"
 lb_health_probe_name="health"
 lb_rule_tcp_name="tcp-rule"
+lb_rule_ssh_name="ssh-rule"
 
 nsg_name="nsg-vm"
 nsg_rule_tcp_name="tcp-rule"
@@ -37,7 +38,7 @@ az network lb probe create \
   --lb-name $lb_name \
   --name $lb_health_probe_name \
   --protocol tcp \
-  --port 10000
+  --port 22
 
 az network lb rule create \
   --resource-group $resource_group_name \
@@ -46,6 +47,20 @@ az network lb rule create \
   --protocol tcp \
   --frontend-port 10000 \
   --backend-port 10000 \
+  --frontend-ip-name $lb_frontend_name \
+  --backend-pool-name $lb_backend_name \
+  --probe-name $lb_health_probe_name \
+  --idle-timeout 15 \
+  --disable-outbound-snat true \
+  --enable-tcp-reset true
+
+az network lb rule create \
+  --resource-group $resource_group_name \
+  --lb-name $lb_name \
+  --name $lb_rule_ssh_name \
+  --protocol tcp \
+  --frontend-port 22 \
+  --backend-port 22 \
   --frontend-ip-name $lb_frontend_name \
   --backend-pool-name $lb_backend_name \
   --probe-name $lb_health_probe_name \
@@ -83,6 +98,12 @@ az network nsg rule create \
   --access allow \
   --priority 200
 
+az network vnet subnet update \
+  --resource-group $resource_group_name \
+  --vnet-name $vnet_name \
+  --name $subnet_vm_name \
+  --network-security-group $nsg_name
+
 vm_nic_names_list=$(IFS=, ; echo "${vm_nic_names[*]}")
 echo $vm_nic_names_list
 vm_nic_ids=()
@@ -90,72 +111,47 @@ vm_nic_ids=()
 for vm_nic_name in "${vm_nic_names[@]}"
 do
   echo $vm_nic_name
+  az network public-ip create \
+    --resource-group $resource_group_name  \
+    --sku Standard \
+    --allocation-method Static \
+    --name "pip-$vm_nic_name"
+
   vm_nic_id=$(az network nic create \
     --resource-group $resource_group_name \
     --name $vm_nic_name \
-    --subnet $subnet_vm_id \
+    --public-ip-address "pip-$vm_nic_name" \
+    --vnet-name $vnet_name \
+    --subnet $subnet_vm_name \
     --accelerated-networking true \
+    --lb-name $lb_name \
+    --lb-address-pools $lb_backend_name \
     --query NewNIC.id -o tsv)
   echo $vm_nic_id
   vm_nic_ids+=($vm_nic_id)
 done
 
-vm_private_ip_address=$(az network nic show \
-  --resource-group $resource_group_name \
-  --name $vm_nic_names \
-  --query ipConfigurations[0].privateIpAddress -o tsv)
-echo $vm_private_ip_address
-
-vm_public_ip_json=$(az network public-ip create \
-  --resource-group $resource_group_name  \
-  --sku Standard \
-  --allocation-method Static \
-  --name "pip-$vm_name")
-vm_public_ip_id=$(echo $vm_public_ip_json | jq -r .publicIp.id)
-vm_public_ip_address=$(echo $vm_public_ip_json | jq -r .publicIp.ipAddress)
-echo $vm_public_ip_id
-echo $vm_public_ip_address
+vm_nic_ids_list=$(IFS=, ; echo "${vm_nic_ids[*]}" | tr "," " ")
+echo $vm_nic_ids_list
 
 vm_json=$(az vm create \
   --resource-group $resource_group_name  \
   --name $vm_name \
   --image UbuntuLTS \
-  --public-ip-address "pip-$vm_name" \
-  --subnet $subnet_vm_id \
+  --nics $vm_nic_ids_list \
   --size Standard_DS3_v2 \
-  --accelerated-networking true \
-  --nsg $nsg_name \
   --admin-username $vm_username \
   --admin-password $vm_password)
 
-# Need to deallocate to add NICs
-az vm deallocate \
-  --resource-group $resource_group_name  \
-  --name $vm_name
+vm_public_ip_addresses=$(echo $vm_json | jq -r .publicIpAddress)
+vm_private_ip_addresses=$(echo $vm_json | jq -r .privateIpAddress)
+echo $vm_public_ip_addresses
+echo $vm_private_ip_addresses
 
-for vm_nic_name in "${vm_nic_names[@]}"
-do
-  echo $vm_nic_name
-  az vm nic add \
-    --resource-group $resource_group_name \
-    --vm-name $vm_name \
-    --nics $vm_nic_name
-done
-
-for vm_nic_name in "${vm_nic_names[@]}"
-do
-  echo $vm_nic_name
-  az network nic ip-config address-pool add \
-    --resource-group $resource_group_name \
-    --lb-name $lb_name \
-    --address-pool $lb_backend_name \
-    --ip-config-name ipconfig1 \
-    --nic-name $vm_nic_name
-done
-
-az vm start \
-  --resource-group $resource_group_name  \
-  --name $vm_name
+vm_public_ip_address=$(echo $vm_public_ip_addresses | cut -d "," -f 1)
+vm_private_ip_address=$(echo $vm_private_ip_addresses | cut -d "," -f 1)
+echo $vm_public_ip_address
+echo $vm_private_ip_address
 
 # Display variables
 # Remember to enable auto export
@@ -168,9 +164,11 @@ echo vm_private_ip_address=$vm_private_ip_address
 echo lb_public_ip_address=$lb_public_ip_address
 
 ssh $vm_username@$vm_public_ip_address
+ssh $vm_username@$lb_public_ip_address
 
 # Or using sshpass
 sshpass -p $vm_password ssh $vm_username@$vm_public_ip_address
+sshpass -p $vm_password ssh $vm_username@$lb_public_ip_address
 
 # Setup VM
 sudo apt update
