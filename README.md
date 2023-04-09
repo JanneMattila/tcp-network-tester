@@ -70,3 +70,20 @@ please see https://aka.ms/aks-required-ports-and-addresses for more information.
 
 You can create NAT Gateway before creating AKS and use it's Public IP Prefix range to the
 `--api-server-authorized-ip-ranges` parameter.
+
+From [https://serverfault.com/a/533612](https://serverfault.com/a/533612):
+
+> On the TCP level the tuple (source ip, source port, destination ip, destination port)
+> must be unique for each simultaneous connection. That means a single client cannot open
+> more than 65535 simultaneous connections to a single server. 
+> But a server can (theoretically) serve 65535 simultaneous connections per client.
+
+From [Azure Load Balancer algorithm](https://learn.microsoft.com/en-us/azure/load-balancer/concepts):
+
+> By default, Azure Load Balancer uses a five-tuple hash.
+> The five tuple includes:
+> - Source IP address
+> - Source port
+> - Destination IP address
+> - Destination port
+> - IP protocol number to map flows to available servers
