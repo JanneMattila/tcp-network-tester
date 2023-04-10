@@ -32,10 +32,11 @@ spec:
             - name: SERVER
               # value: "10.4.0.4"
               # value: "$vm_public_ip_address"
+              # value: "$lb_public_ip_address"
               # value: "$vm_private_ip_address"
               value: "$server_address"
-            # value: "$server_address_internal"
-            # value: "$server_pod_ip_address"
+              # value: "$server_address_internal"
+              # value: "$server_pod_ip_address"
             - name: PORT
               value: "10000"
             - name: INTERVAL
