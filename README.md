@@ -87,3 +87,5 @@ From [Azure Load Balancer algorithm](https://learn.microsoft.com/en-us/azure/loa
 > - Destination IP address
 > - Destination port
 > - IP protocol number to map flows to available servers
+
+Good explanation of [SNAT with App Service](https://4lowtherabbit.github.io/blogs/2019/10/SNAT/).
